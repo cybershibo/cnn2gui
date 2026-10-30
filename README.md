@@ -187,3 +187,22 @@ copia las activaciones a CPU y añade sobrecarga; desactívala para medir rendim
 
 Referencias: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
 [TensorFlow CUDA](https://www.tensorflow.org/install/pip).
+
+## Elegir imágenes del dataset para probar una CNN
+
+En **Ejecución**, abre una CNN guardada y elige **Selección aleatoria de 5 000
+imágenes** como origen. Pulsa **Extraer 5 000 imágenes al azar**. Se seleccionan
+5 000 índices únicos del test oficial del mismo dataset del modelo, sin usar
+imágenes de entrenamiento. La selección se guarda en el volumen de Docker;
+puedes volver a abrirla o generar otra muestra aleatoria.
+
+Explora la galería de 20 imágenes por página y pulsa **Elegir** debajo de una,
+o introduce directamente un número entre 1 y 5 000. Luego pulsa **Clasificar
+imagen**. La etiqueta real se muestra junto al resultado para comprobar el acierto.
+La selección conserva los píxeles originales y usa el mismo preprocesamiento,
+selector CPU/CUDA y visualización de activaciones de las demás entradas.
+También siguen disponibles el ejemplo guardado y la subida de imágenes propias.
+El muestreo guarda índices y semilla, sin duplicar 5 000 archivos PNG.
+
+Usa esta galería para explorar errores, no para ajustar hiperparámetros según el
+test; el entrenamiento debe guiarse por la validación.
