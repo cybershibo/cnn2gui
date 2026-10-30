@@ -59,6 +59,12 @@ class CNNTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, NN2GUI_DATA=directory), patch('proyecto.cnn_ui.load_dataset', return_value=fixture()) as loader:
             app = AppTest.from_file('src/proyecto/app.py', default_timeout=60).run()
             self.assertFalse(app.exception)
+            next(item for item in app.radio if item.label == 'Tipo de red para diseñar y entrenar').set_value('Convolucional (CNN)').run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any(item.label == 'Bloques convolución + agrupación' for item in app.tabs[0].slider))
+            self.assertFalse(app.tabs[0].button)
+            self.assertTrue(any(item.label == 'Épocas de la CNN' for item in app.tabs[1].slider))
+            self.assertFalse(app.tabs[2].slider)
             select = next(item for item in app.selectbox if item.label == 'Dataset público y gratuito')
             select.select('mnist').run()
             self.assertFalse(app.exception)

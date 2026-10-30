@@ -1,14 +1,24 @@
-"""Controles de CNN y catálogo público, sin código para el usuario final."""
+"""Controles de CNN separados por arquitectura, entrenamiento y ejecución."""
 import pandas as pd
 import streamlit as st
 
 from proyecto.cnn import CATALOG, data_root, load_dataset, predict_cnn, train_cnn
-from proyecto.training import load_run
 
 
-def render():
-    st.header('Red convolucional · TensorFlow/Keras')
-    st.write('Basada en el ejemplo del repositorio: convolución → agrupación → capa densa → clasificación.')
+def render_architecture():
+    st.subheader('Arquitectura convolucional · TensorFlow/Keras')
+    st.write('Basada en el ejemplo: convolución → agrupación → capa densa → clasificación.')
+    blocks = st.slider('Bloques convolución + agrupación', 1, 3, 2)
+    filters = [st.selectbox(f'Filtros del bloque {i+1}', [8, 16, 32, 64, 128], index=min(2+i, 4)) for i in range(blocks)]
+    st.caption('Filtros 3×3 con ReLU; agrupación 2×2. Tres bloques usan padding same para conservar dimensiones compatibles.')
+    dense = st.slider('Neuronas de la capa densa final', 8, 256, 64, step=8)
+    dropout = st.slider('Dropout: proporción de neuronas desactivadas al entrenar', 0.0, 0.7, 0.2, step=0.1)
+    st.write(f'Entrada 28×28×1 → bloques {filters} → Dense({dense}) → Dropout({dropout:.1f}) → 10 clases')
+    return dict(filters=filters, dense=dense, dropout=dropout)
+
+
+def render_training(architecture):
+    filters, dense, dropout = architecture['filters'], architecture['dense'], architecture['dropout']
     dataset = st.selectbox('Dataset público y gratuito', list(CATALOG),
                            format_func=lambda key: CATALOG[key]['name'])
     entry = CATALOG[dataset]
@@ -25,12 +35,7 @@ def render():
         except Exception as exc:
             st.error(f'No se pudo preparar el dataset. Comprueba la conexión y vuelve a intentar: {exc}')
     st.caption('Entrenar también descarga el dataset seleccionado si aún no está disponible. Las descargas no necesitan cuentas ni claves.')
-    blocks = st.slider('Bloques convolución + agrupación', 1, 3, 2)
-    with st.form('cnn_architecture'):
-        filters = [st.selectbox(f'Filtros del bloque {i+1}', [8, 16, 32, 64, 128], index=min(2+i, 4)) for i in range(blocks)]
-        st.caption('Filtros 3×3 con ReLU; agrupación 2×2. Tres bloques usan padding same para conservar dimensiones compatibles.')
-        dense = st.slider('Neuronas de la capa densa final', 8, 256, 64, step=8)
-        dropout = st.slider('Dropout: proporción de neuronas desactivadas al entrenar', 0.0, 0.7, 0.2, step=0.1)
+    with st.form('cnn_training'):
         samples = st.selectbox('Imágenes del conjunto oficial de entrenamiento', [1000, 5000, 10000, 60000], index=1)
         epochs = st.slider('Épocas de la CNN', 1, 100, 5)
         batch = st.selectbox('Tamaño de lote de la CNN', [16, 32, 64, 128], index=3)
@@ -49,28 +54,12 @@ def render():
                 run = train_cnn(dataset, filters, dense, dropout, epochs, batch, rate, int(seed), samples, update)
             st.session_state['last_cnn'] = run
             bar.progress(1.0)
-            st.success('CNN guardada. Puedes probarla abajo, incluso después de reiniciar Docker.')
+            st.success('CNN guardada. Abre Ejecución para probarla.')
         except Exception as exc:
             st.error(f'No se completó el entrenamiento: {exc}')
-    runs = []
-    for directory in data_root().glob('*'):
-        if (directory / 'history.json').exists() and load_run(directory.name)[0].get('kind') == 'cnn':
-            runs.append(directory.name)
-    runs.sort(reverse=True)
-    if not runs:
-        st.info('Aquí aparecerán las CNN entrenadas y sus resultados.')
-        return
-    last = st.session_state.get('last_cnn')
-    run = st.selectbox('CNN guardada', runs, index=runs.index(last) if last in runs else 0,
-                       format_func=lambda key: CATALOG[load_run(key)[0]['dataset']]['name'] + ' · ' + key[:8])
-    config, metrics, history = load_run(run)
-    st.metric('Exactitud en prueba oficial', f"{metrics['accuracy']:.1%}")
-    st.line_chart(pd.DataFrame(history).set_index('época'))
-    st.caption('Si baja la pérdida de entrenamiento pero sube la de validación, puede haber sobreajuste. Ajusta con validación; reserva el test para evaluación final.')
-    st.write('Matriz de confusión: filas reales, columnas predichas.')
-    st.dataframe(pd.DataFrame(metrics['confusion'], index=config['classes'], columns=config['classes']))
-    with st.expander('Arquitectura, dataset y configuración guardados'):
-        st.json(config)
+
+
+def render_prediction(run, config):
     st.subheader('Probar la CNN guardada')
     st.write('Se convierte la imagen a gris, se redimensiona a 28×28 y se divide entre 255, como en el ejemplo.')
     sample = (data_root() / run / 'sample.png').read_bytes()

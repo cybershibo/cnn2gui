@@ -86,7 +86,8 @@ Los frameworks (PyTorch, etc.) se añadirán como extras opcionales por backend 
 
 ## CNN y catálogo de datasets públicos
 
-En la pestaña **CNN y datasets públicos**, selecciona manualmente:
+Selecciona **Convolucional (CNN)** en la barra lateral. En la pestaña
+**Entrenamiento**, elige manualmente el dataset:
 
 | Dataset gratuito | Contenido | Entrada | Fuente |
 | --- | --- | --- | --- |
@@ -118,3 +119,17 @@ Para actualizar una instalación anterior sin perder experimentos:
 ```bash
 docker compose up --build -d
 ```
+
+## Tres procesos separados en la interfaz
+
+- **Arquitectura:** elegir el tipo de red en la barra lateral y configurar sus
+  capas, neuronas, filtros, activaciones y dropout.
+- **Entrenamiento:** seleccionar o cargar el dataset, ajustar épocas, lotes y tasa
+  de aprendizaje, entrenar y consultar las métricas de los experimentos guardados.
+- **Ejecución:** seleccionar cualquier modelo guardado (MLP o CNN), introducir
+  medidas o cargar una imagen y obtener predicciones. No requiere volver a entrenar.
+
+Los cambios en Arquitectura se aplican al próximo entrenamiento. Ejecución usa
+siempre la arquitectura y el preprocesamiento del modelo guardado, aunque cambies
+el tipo de red o los controles de diseño. Los experimentos anteriores siguen siendo
+compatibles con la nueva organización.
