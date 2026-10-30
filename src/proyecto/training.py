@@ -8,11 +8,9 @@ from uuid import uuid4
 
 import numpy as np
 import pandas as pd
-import torch
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from torch import nn
 
 
 def prepare(frame: pd.DataFrame, target: str):
@@ -39,6 +37,7 @@ def prepare(frame: pd.DataFrame, target: str):
 
 
 def build_model(inputs, hidden, outputs, activation):
+    from torch import nn
     layers = []
     for width in hidden:
         layers.extend([nn.Linear(inputs, width), nn.ReLU() if activation == "ReLU" else nn.Tanh()])
@@ -46,7 +45,16 @@ def build_model(inputs, hidden, outputs, activation):
     return nn.Sequential(*layers, nn.Linear(inputs, outputs))
 
 
-def train(frame, target, hidden, activation, epochs, learning_rate, batch_size, seed, progress=None):
+def train(frame, target, hidden, activation, epochs, learning_rate, batch_size, seed, progress=None, device="cpu"):
+    import torch
+    from torch import nn
+    from proyecto.compute import validate_device, worker
+    validate_device(device)
+    if device != "cpu" and not os.environ.get("NN2GUI_WORKER"):
+        return worker("torch", "mlp_train", dict(frame=frame.to_json(orient="split"), target=target, hidden=hidden, activation=activation, epochs=epochs, learning_rate=learning_rate, batch_size=batch_size, seed=seed, device=device), progress)
+    target_device = torch.device(device)
+    if device != "cpu":
+        torch.ones(1, device=target_device).cpu()
     if not hidden or len(hidden) > 4 or any(not 1 <= n <= 256 for n in hidden):
         raise ValueError("Usa de 1 a 4 capas ocultas con 1 a 256 neuronas.")
     if activation not in ("ReLU", "Tanh") or not 1 <= epochs <= 300:
@@ -60,9 +68,9 @@ def train(frame, target, hidden, activation, epochs, learning_rate, batch_size, 
     fit, test = train_test_split(indices, test_size=0.2, stratify=y, random_state=seed)
     fit, val = train_test_split(fit, test_size=0.25, stratify=y[fit], random_state=seed)
     scaler = StandardScaler().fit(x[fit])
-    x = torch.tensor(scaler.transform(x), dtype=torch.float32)
-    y = torch.tensor(y, dtype=torch.long)
-    model = build_model(len(columns), hidden, len(classes), activation)
+    x = torch.tensor(scaler.transform(x), dtype=torch.float32, device=target_device)
+    y = torch.tensor(y, dtype=torch.long, device=target_device)
+    model = build_model(len(columns), hidden, len(classes), activation).to(target_device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = nn.CrossEntropyLoss()
     history = []
@@ -84,14 +92,14 @@ def train(frame, target, hidden, activation, epochs, learning_rate, batch_size, 
         if progress:
             progress(history)
     with torch.no_grad():
-        predicted = model(x[test]).argmax(1).numpy()
-    config = dict(columns=columns, classes=classes, hidden=hidden, activation=activation,
+        predicted = model(x[test]).argmax(1).cpu().numpy()
+    config = dict(device=device, columns=columns, classes=classes, hidden=hidden, activation=activation,
                   mean=scaler.mean_.tolist(), scale=scaler.scale_.tolist(), target=target,
                   epochs=epochs, learning_rate=learning_rate, batch_size=batch_size, seed=seed,
                   split={"train": fit.tolist(), "validation": val.tolist(), "test": test.tolist()},
                   versions={"torch": str(torch.__version__), "numpy": np.__version__})
-    metrics = dict(accuracy=accuracy_score(y[test].numpy(), predicted),
-                   confusion=confusion_matrix(y[test].numpy(), predicted,
+    metrics = dict(accuracy=accuracy_score(y[test].cpu().numpy(), predicted),
+                   confusion=confusion_matrix(y[test].cpu().numpy(), predicted,
                                              labels=list(range(len(classes)))).tolist())
     directory = Path(os.environ.get("NN2GUI_DATA", "data")) / uuid4().hex
     directory.mkdir(parents=True, exist_ok=False)
@@ -110,7 +118,12 @@ def load_run(run_id):
             for name in ("config", "metrics", "history")]
 
 
-def predict(run_id, values, on_layer=None):
+def predict(run_id, values, on_layer=None, device="cpu"):
+    import torch
+    from proyecto.compute import validate_device, worker
+    validate_device(device)
+    if device != "cpu" and not os.environ.get("NN2GUI_WORKER"):
+        return np.asarray(worker("torch", "mlp_predict", dict(run_id=run_id, values=list(values), device=device, trace=on_layer is not None), on_layer))
     config, _, _ = load_run(run_id)
     x = np.asarray(values, dtype=np.float32)
     if x.shape != (len(config["columns"]),) or not np.isfinite(x).all():
@@ -119,15 +132,16 @@ def predict(run_id, values, on_layer=None):
     model = build_model(len(x), config["hidden"], len(config["classes"]), config["activation"])
     directory = Path(os.environ.get("NN2GUI_DATA", "data")) / run_id
     model.load_state_dict(torch.load(directory / "weights.pt", map_location="cpu", weights_only=True))
+    model.to(device)
     model.eval()
     with torch.no_grad():
-        tensor = torch.tensor(x, dtype=torch.float32)
+        tensor = torch.tensor(x, dtype=torch.float32, device=device)
         if on_layer is None:
-            return model(tensor).softmax(0).numpy()
-        on_layer('Entrada normalizada', tensor.numpy().copy())
+            return model(tensor).softmax(0).cpu().numpy()
+        on_layer('Entrada normalizada', tensor.cpu().numpy().copy())
         for index, layer in enumerate(model):
             tensor = layer(tensor)
-            on_layer(f'{index + 1} · {type(layer).__name__}', tensor.numpy().copy())
-        probabilities = tensor.softmax(0).numpy()
+            on_layer(f'{index + 1} · {type(layer).__name__}', tensor.cpu().numpy().copy())
+        probabilities = tensor.softmax(0).cpu().numpy()
         on_layer('Salida · probabilidades', probabilities.copy())
         return probabilities

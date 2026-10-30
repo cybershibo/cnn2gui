@@ -1,0 +1,6 @@
+services:
+  laboratorio:
+    image: nn2gui-laboratorio-cuda
+    build:
+      target: cuda
+    gpus: all

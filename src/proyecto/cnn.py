@@ -38,6 +38,11 @@ def tensorflow():
     os.environ.setdefault('TF_NUM_INTRAOP_THREADS', '2')
     os.environ.setdefault('TF_NUM_INTEROP_THREADS', '1')
     import tensorflow as tf
+    for gpu in tf.config.list_physical_devices("GPU"):
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError:
+            pass
     return tf
 
 
@@ -88,75 +93,100 @@ def build_model(filters, dense, dropout, rate):
 
 
 def train_cnn(dataset, filters=(32, 64), dense=64, dropout=0.2, epochs=5,
-              batch_size=128, rate=0.001, seed=42, sample_count=5000, progress=None):
+              batch_size=128, rate=0.001, seed=42, sample_count=5000, progress=None, device="cpu"):
+    from proyecto.compute import validate_device, worker
+    validate_device(device)
+    if device != "cpu" and not os.environ.get("NN2GUI_WORKER"):
+        return worker("tensorflow", "cnn_train", dict(dataset=dataset, filters=filters, dense=dense, dropout=dropout, epochs=epochs, batch_size=batch_size, rate=rate, seed=seed, sample_count=sample_count, device=device), progress)
     if dataset not in CATALOG or not 1 <= epochs <= 100 or batch_size not in (16, 32, 64, 128):
         raise ValueError('Dataset o parámetros de entrenamiento no admitidos.')
     if not 200 <= sample_count <= 60000:
         raise ValueError('Selecciona de 200 a 60 000 imágenes de entrenamiento.')
     tf = tensorflow()
-    tf.keras.utils.set_random_seed(seed)
-    model = build_model(filters, dense, dropout, rate)
-    (images, labels), (test_images, test_labels) = load_dataset(dataset)
-    indices = np.arange(len(images))
-    if sample_count < len(indices):
-        indices, _ = train_test_split(indices, train_size=sample_count, stratify=labels, random_state=seed)
-    fit, val = train_test_split(indices, test_size=1/6, stratify=labels[indices], random_state=seed)
-    def batches(raw, targets, shuffle=False):
-        # Normalizar por lote evita mantener copias float32 del dataset completo.
-        ds = tf.data.Dataset.from_tensor_slices((raw, targets))
-        if shuffle:
-            ds = ds.shuffle(min(len(raw), 5000), seed=seed)
-        ds = ds.batch(batch_size).map(lambda x, y: (tf.cast(x[..., None], tf.float32) / 255.0, y))
-        options = tf.data.Options()
-        options.threading.private_threadpool_size = 1
-        return ds.with_options(options)
-    history = []
-    class Progress(tf.keras.callbacks.Callback):
-        def on_epoch_end(self, epoch, logs=None):
-            logs = logs or {}
-            if not np.isfinite([logs['loss'], logs['val_loss']]).all():
-                raise ValueError('El entrenamiento divergió; reduce la tasa de aprendizaje.')
-            history.append({'época': epoch + 1, 'entrenamiento': float(logs['loss']), 'validación': float(logs['val_loss'])})
-            if progress:
-                progress(history)
-    model.fit(batches(images[fit], labels[fit], True), validation_data=batches(images[val], labels[val]),
-              epochs=epochs, verbose=0, shuffle=False, callbacks=[Progress(), tf.keras.callbacks.EarlyStopping(
-                  monitor='val_loss', patience=3, restore_best_weights=True)])
-    predictions = []
-    for x, _ in batches(test_images, test_labels):
-        predictions.extend(model(x, training=False).numpy().argmax(1).tolist())
-    metrics = {'accuracy': float(np.mean(np.asarray(predictions) == test_labels)),
-               'confusion': confusion_matrix(test_labels, predictions, labels=list(range(10))).tolist()}
-    config = {'kind': 'cnn', 'framework': 'tensorflow', 'dataset': dataset,
-              'source': CATALOG[dataset]['source'], 'classes': CATALOG[dataset]['classes'],
-              'input_shape': [28, 28, 1], 'preprocessing': 'grayscale_resize_bilinear_div255',
-              'filters': list(filters), 'dense': dense, 'dropout': dropout, 'rate': rate,
-              'epochs': epochs, 'epochs_ran': len(history), 'batch_size': batch_size, 'seed': seed,
-              'sample_count': len(indices), 'split': {'train': fit.tolist(), 'validation': val.tolist(),
-              'test': list(range(len(test_images)))}, 'test_partition': 'official_test',
-              'versions': {'tensorflow': tf.__version__, 'numpy': np.__version__}, 'device': 'CPU'}
-    directory = data_root() / uuid4().hex
-    directory.mkdir(parents=True, exist_ok=False)
-    model.save(directory / 'model.keras')
-    Image.fromarray(test_images[0]).save(directory / 'sample.png')
-    config['sample_expected'] = config['classes'][int(test_labels[0])]
-    for name, value in [('config', config), ('metrics', metrics), ('history', history)]:
-        (directory / f'{name}.json').write_text(json.dumps(value, ensure_ascii=False, indent=2))
-    tf.keras.backend.clear_session()
-    return directory.name
+    placement = "/CPU:0" if device == "cpu" else "/GPU:" + device.split(":")[1]
+    if device != "cpu" and int(device.split(":")[1]) >= len(tf.config.list_physical_devices("GPU")):
+        raise ValueError("La GPU CUDA seleccionada no está disponible.")
+    with tf.device(placement):
+        if device != "cpu":
+            check = tf.linalg.matmul(tf.ones((2, 2)), tf.ones((2, 2)))
+            if "GPU" not in check.device:
+                raise RuntimeError("TensorFlow no está ejecutando en la GPU seleccionada.")
+        tf.keras.utils.set_random_seed(seed)
+        model = build_model(filters, dense, dropout, rate)
+        (images, labels), (test_images, test_labels) = load_dataset(dataset)
+        indices = np.arange(len(images))
+        if sample_count < len(indices):
+            indices, _ = train_test_split(indices, train_size=sample_count, stratify=labels, random_state=seed)
+        fit, val = train_test_split(indices, test_size=1/6, stratify=labels[indices], random_state=seed)
+        def batches(raw, targets, shuffle=False):
+            # Normalizar por lote evita mantener copias float32 del dataset completo.
+            ds = tf.data.Dataset.from_tensor_slices((raw, targets))
+            if shuffle:
+                ds = ds.shuffle(min(len(raw), 5000), seed=seed)
+            ds = ds.batch(batch_size).map(lambda x, y: (tf.cast(x[..., None], tf.float32) / 255.0, y))
+            options = tf.data.Options()
+            options.threading.private_threadpool_size = 1
+            return ds.with_options(options)
+        history = []
+        class Progress(tf.keras.callbacks.Callback):
+            def on_epoch_end(self, epoch, logs=None):
+                logs = logs or {}
+                if not np.isfinite([logs['loss'], logs['val_loss']]).all():
+                    raise ValueError('El entrenamiento divergió; reduce la tasa de aprendizaje.')
+                history.append({'época': epoch + 1, 'entrenamiento': float(logs['loss']), 'validación': float(logs['val_loss'])})
+                if progress:
+                    progress(history)
+        model.fit(batches(images[fit], labels[fit], True), validation_data=batches(images[val], labels[val]),
+                  epochs=epochs, verbose=0, shuffle=False, callbacks=[Progress(), tf.keras.callbacks.EarlyStopping(
+                      monitor='val_loss', patience=3, restore_best_weights=True)])
+        predictions = []
+        for x, _ in batches(test_images, test_labels):
+            predictions.extend(model(x, training=False).numpy().argmax(1).tolist())
+        metrics = {'accuracy': float(np.mean(np.asarray(predictions) == test_labels)),
+                   'confusion': confusion_matrix(test_labels, predictions, labels=list(range(10))).tolist()}
+        config = {'kind': 'cnn', 'framework': 'tensorflow', 'dataset': dataset,
+                  'source': CATALOG[dataset]['source'], 'classes': CATALOG[dataset]['classes'],
+                  'input_shape': [28, 28, 1], 'preprocessing': 'grayscale_resize_bilinear_div255',
+                  'filters': list(filters), 'dense': dense, 'dropout': dropout, 'rate': rate,
+                  'epochs': epochs, 'epochs_ran': len(history), 'batch_size': batch_size, 'seed': seed,
+                  'sample_count': len(indices), 'split': {'train': fit.tolist(), 'validation': val.tolist(),
+                  'test': list(range(len(test_images)))}, 'test_partition': 'official_test',
+                  'versions': {'tensorflow': tf.__version__, 'numpy': np.__version__}, 'device': device}
+        directory = data_root() / uuid4().hex
+        directory.mkdir(parents=True, exist_ok=False)
+        model.save(directory / 'model.keras')
+        Image.fromarray(test_images[0]).save(directory / 'sample.png')
+        config['sample_expected'] = config['classes'][int(test_labels[0])]
+        for name, value in [('config', config), ('metrics', metrics), ('history', history)]:
+            (directory / f'{name}.json').write_text(json.dumps(value, ensure_ascii=False, indent=2))
+        tf.keras.backend.clear_session()
+        return directory.name
 
 
-def predict_cnn(run_id, content, on_layer=None):
+def predict_cnn(run_id, content, on_layer=None, device="cpu"):
+    from proyecto.compute import validate_device, worker
+    validate_device(device)
+    if device != "cpu" and not os.environ.get("NN2GUI_WORKER"):
+        import base64
+        return np.asarray(worker("tensorflow", "cnn_predict", dict(run_id=run_id, content=base64.b64encode(content).decode(), device=device, trace=on_layer is not None), on_layer))
     config, _, _ = load_run(run_id)
     if config.get('kind') != 'cnn':
         raise ValueError('Esta ejecución no es una CNN.')
     tf = tensorflow()
-    model = tf.keras.models.load_model(data_root() / run_id / 'model.keras', compile=False, safe_mode=True)
-    tensor = prepare_image(content)
-    if on_layer is None:
-        return model(tensor, training=False).numpy()[0]
-    on_layer('Entrada normalizada', tensor[0].copy())
-    for index, layer in enumerate(model.layers):
-        tensor = layer(tensor, training=False)
-        on_layer(f'{index + 1} · {type(layer).__name__}', tensor.numpy()[0].copy())
-    return tensor.numpy()[0]
+    placement = "/CPU:0" if device == "cpu" else "/GPU:" + device.split(":")[1]
+    if device != "cpu" and int(device.split(":")[1]) >= len(tf.config.list_physical_devices("GPU")):
+        raise ValueError("La GPU CUDA seleccionada no está disponible.")
+    with tf.device(placement):
+        if device != "cpu":
+            check = tf.linalg.matmul(tf.ones((2, 2)), tf.ones((2, 2)))
+            if "GPU" not in check.device:
+                raise RuntimeError("TensorFlow no está ejecutando en la GPU seleccionada.")
+        model = tf.keras.models.load_model(data_root() / run_id / 'model.keras', compile=False, safe_mode=True)
+        tensor = prepare_image(content)
+        if on_layer is None:
+            return model(tensor, training=False).numpy()[0]
+        on_layer('Entrada normalizada', tensor[0].copy())
+        for index, layer in enumerate(model.layers):
+            tensor = layer(tensor, training=False)
+            on_layer(f'{index + 1} · {type(layer).__name__}', tensor.numpy()[0].copy())
+        return tensor.numpy()[0]

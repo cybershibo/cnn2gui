@@ -5,8 +5,8 @@ Aplicación didáctica con interfaz en el navegador, escrita en Python y ejecuta
 
 ## Iniciar la aplicación
 
-Requisitos del huésped: Linux, Docker Engine y Docker Compose. Esta primera
-versión usa CPU; no requiere GPU, Python ni pip instalados en el huésped.
+Requisitos del huésped: Linux, Docker Engine y Docker Compose. El perfil predeterminado
+usa CPU; no requiere GPU, Python ni pip instalados en el huésped.
 
 Desde esta carpeta:
 
@@ -42,12 +42,12 @@ La predicción recupera el modelo y el preprocesamiento desde disco.
 ## Alcance de esta primera versión
 
 Clasificación tabular con MLP y clasificación de imágenes con CNN. No admite todavía
-regresión, redes recurrentes ni aceleración GPU. El entrenamiento ocurre en
-el proceso de la sesión y todavía no tiene cancelación ni cola de trabajos.
+regresión ni redes recurrentes. Los trabajos CUDA se ejecutan en procesos separados;
+los trabajos CPU siguen en la sesión. Todavía no hay cancelación ni cola de trabajos.
 Los datasets cargados deben ser propios o tener permiso para usarlos. Un modelo
 siempre elige entre las clases aprendidas; no detecta automáticamente datos ajenos.
 
-El soporte GPU requerirá imágenes por backend y comprobaciones del framework.
+El perfil CUDA permite seleccionar CPU o GPU NVIDIA por framework.
 Además del driver y Docker, NVIDIA necesita NVIDIA Container Toolkit en el huésped.
 No se instala software de entrenamiento en el huésped.
 
@@ -82,7 +82,8 @@ Forzar dispositivo: `PROYECTO_DEVICE=cpu proyecto` (nvidia | amd | intel | cpu).
 
 Sin dependencias: se leen las GPU PCI desde `/sys/bus/pci/devices` y se verifica el driver
 (`/proc/driver/nvidia` o `nvidia-smi`, `/dev/kfd`, `/dev/dri/renderD*`).
-Los frameworks (PyTorch, etc.) se añadirán como extras opcionales por backend cuando definas el proyecto.
+Esta herramienta PCI es orientativa; los selectores de la interfaz comprueban CUDA
+mediante operaciones reales en PyTorch o TensorFlow dentro del contenedor.
 
 ## CNN y catálogo de datasets públicos
 
@@ -156,3 +157,33 @@ negativos, con escala relativa por capa; el borde dorado resalta la etapa activa
 Las conexiones son esquemáticas y no representan pesos individuales. Activación no equivale a importancia causal ni atención.
 La pausa es una ayuda visual y no mide el rendimiento del procesador. Cada nueva
 predicción reemplaza la traza anterior; las trazas son temporales de la sesión.
+
+## CPU o GPU NVIDIA con CUDA
+
+El perfil CPU continúa funcionando con `docker compose up --build -d`.
+Para habilitar CUDA (el mismo volumen conserva todos los modelos):
+
+```bash
+docker compose -f compose.yaml -f compose.cuda.yaml up --build -d
+```
+
+El huésped requiere driver NVIDIA funcionando y NVIDIA Container Toolkit configurado
+para Docker. Comprueba `nvidia-smi` antes de iniciar el perfil CUDA. La imagen instala
+las bibliotecas CUDA dentro del contenedor; no necesitas instalar Python ni CUDA
+Toolkit en el huésped. La construcción CUDA descarga varios GB adicionales.
+
+Selecciona **Dispositivo de cómputo** en Entrenamiento o Ejecución. Las elecciones
+son independientes: un modelo entrenado con GPU se puede ejecutar en CPU y viceversa.
+Cada GPU se identifica por nombre e índice. Solo se ofrecen dispositivos que superan
+una operación real de comprobación del framework; si no hay GPU disponible se informa
+el motivo y se conserva CPU. Un fallo durante un trabajo GPU muestra un error;
+no se cambia silenciosamente de dispositivo. La configuración guardada registra
+el dispositivo de entrenamiento.
+
+PyTorch CUDA y TensorFlow CUDA se ejecutan en procesos y entornos independientes
+dentro del mismo contenedor para evitar conflictos de bibliotecas. El progreso y
+las activaciones siguen llegando a la interfaz durante el cálculo. La visualización
+copia las activaciones a CPU y añade sobrecarga; desactívala para medir rendimiento.
+
+Referencias: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
+[TensorFlow CUDA](https://www.tensorflow.org/install/pip).

@@ -35,6 +35,13 @@ class TrainingTests(unittest.TestCase):
             self.assertTrue(np.all(trace[2][1] >= 0))
             self.assertGreater(metrics['accuracy'], 0.5)
             self.assertEqual(len(history), 20)
+            import sys
+            from proyecto.compute import worker
+            events = []
+            remote = worker('torch', 'mlp_predict', dict(run_id=run, values=self.frame.iloc[0, :-1].tolist(), device='cpu', trace=True), lambda name, values: events.append((name, values)), _python=sys.executable)
+            np.testing.assert_allclose(remote, probabilities)
+            self.assertEqual(len(events), len(trace))
+            self.assertEqual(config['device'], 'cpu')
 
     def test_reject_incompatible_data(self):
         for replacement in [float('nan'), float('inf'), 'texto']:

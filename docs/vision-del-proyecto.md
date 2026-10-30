@@ -89,7 +89,7 @@ el modelo guardado. Después se ampliarán tipos de redes y formatos de datos.
 Se incorpora primero clasificación tabular con MLP, Iris y CSV numéricos para
 validar el recorrido completo con una imagen CPU. La CNN permanece como siguiente
 extensión propuesta. El entrenamiento inicial es síncrono: trabajos en segundo
-plano, cancelación y perfiles GPU están pendientes.
+plano y cancelación siguen pendientes. El perfil NVIDIA CUDA se incorpora abajo.
 
 ## Extensión CNN implementada
 
@@ -98,4 +98,12 @@ El catálogo seleccionable contiene Fashion-MNIST y MNIST, ambos gratuitos y
 compatibles con imágenes de 28×28 en gris. La arquitectura, entrenamiento,
 evaluación y predicción desde imágenes se controlan desde la interfaz Python.
 Los datasets se descargan desde el contenedor y se conservan en el volumen.
-El perfil Docker sigue siendo CPU; aceleración GPU y cancelación siguen pendientes.
+El perfil CPU se conserva; se añade un perfil NVIDIA CUDA. La cancelación sigue pendiente.
+
+## Selección de cómputo
+
+Entrenamiento y Ejecución permiten elegir CPU o una GPU NVIDIA CUDA disponible.
+El perfil `compose.cuda.yaml` instala entornos separados de PyTorch y TensorFlow,
+con procesos que transmiten progreso y activaciones a la interfaz. La detección
+comprueba una operación real; las GPU no utilizables no se ofrecen. El huésped
+requiere driver compatible y NVIDIA Container Toolkit. AMD e Intel siguen pendientes.

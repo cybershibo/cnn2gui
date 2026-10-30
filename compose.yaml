@@ -1,6 +1,9 @@
 services:
   laboratorio:
-    build: .
+    image: nn2gui-laboratorio-cpu
+    build:
+      context: .
+      target: cpu
     ports:
       - "127.0.0.1:8501:8501"
     volumes:

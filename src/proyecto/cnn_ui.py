@@ -2,6 +2,7 @@
 import pandas as pd
 import streamlit as st
 
+from proyecto.compute_ui import device_selector
 from proyecto.cnn import CATALOG, data_root, load_dataset, predict_cnn, train_cnn
 from proyecto.activation_ui import input_signature, visualization_options, run_inference, render_trace
 
@@ -36,6 +37,7 @@ def render_training(architecture):
         except Exception as exc:
             st.error(f'No se pudo preparar el dataset. Comprueba la conexión y vuelve a intentar: {exc}')
     st.caption('Entrenar también descarga el dataset seleccionado si aún no está disponible. Las descargas no necesitan cuentas ni claves.')
+    device = device_selector('tensorflow', 'cnn-train-device')
     with st.form('cnn_training'):
         samples = st.selectbox('Imágenes del conjunto oficial de entrenamiento', [1000, 5000, 10000, 60000], index=1)
         epochs = st.slider('Épocas de la CNN', 1, 100, 5)
@@ -43,7 +45,7 @@ def render_training(architecture):
         rate = st.selectbox('Tasa de aprendizaje de la CNN', [0.0001, 0.001, 0.01], index=1)
         seed = st.number_input('Semilla de la CNN', 0, 2147483647, 42)
         st.write('Se reserva 1/6 de las imágenes seleccionadas para validación. La prueba usa las 10 000 imágenes oficiales independientes.')
-        st.caption('Adam, entropía cruzada y salida softmax. Parada temprana tras tres épocas sin mejora de validación, recuperando los mejores pesos. En CPU puede tardar varios minutos.')
+        st.caption('Adam, entropía cruzada y salida softmax. Parada temprana tras tres épocas sin mejora de validación, recuperando los mejores pesos. El tiempo depende del dispositivo seleccionado.')
         submitted = st.form_submit_button('Entrenar CNN y guardar', type='primary')
     if submitted:
         bar, chart = st.progress(0), st.empty()
@@ -52,7 +54,7 @@ def render_training(architecture):
             chart.line_chart(pd.DataFrame(history).set_index('época'))
         try:
             with st.spinner('Preparando datos y entrenando la CNN…'):
-                run = train_cnn(dataset, filters, dense, dropout, epochs, batch, rate, int(seed), samples, update)
+                run = train_cnn(dataset, filters, dense, dropout, epochs, batch, rate, int(seed), samples, update, device=device)
             st.session_state['last_cnn'] = run
             bar.progress(1.0)
             st.success('CNN guardada. Abre Ejecución para probarla.')
@@ -69,11 +71,12 @@ def render_prediction(run, config):
     st.image(content, width=140)
     if not upload:
         st.caption(f"Ejemplo del test oficial. Clase real: {config['sample_expected']}.")
+    device = device_selector('tensorflow', f'cnn-execute-{run}')
     enabled, delay = visualization_options(run)
-    signature = input_signature(content)
+    signature = input_signature(content+device.encode())
     if st.button('Clasificar imagen'):
         try:
-            probabilities = run_inference(run, signature, lambda callback: predict_cnn(run, content, on_layer=callback), enabled, delay)
+            probabilities = run_inference(run, signature, lambda callback: predict_cnn(run, content, on_layer=callback, device=device), enabled, delay)
             st.success(f"Clase predicha: {config['classes'][int(probabilities.argmax())]}")
             st.bar_chart(pd.DataFrame({'Probabilidad': probabilities}, index=config['classes']))
             st.caption('La red solo conoce las diez clases de su dataset. Una fotografía diferente también recibirá una clase; eso no garantiza una predicción válida.')

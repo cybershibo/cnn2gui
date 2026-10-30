@@ -52,6 +52,12 @@ class CNNTests(unittest.TestCase):
             trace = []
             traced = predict_cnn(run, content, on_layer=lambda name, values: trace.append((name, values)))
             np.testing.assert_allclose(first, traced, atol=1e-6)
+            import sys, base64
+            from proyecto.compute import worker
+            events=[]
+            remote=worker('tensorflow', 'cnn_predict', dict(run_id=run, content=base64.b64encode(content).decode(), device='cpu', trace=True), lambda name, values: events.append((name, values)), _python=sys.executable)
+            np.testing.assert_allclose(remote, first, atol=1e-6)
+            self.assertEqual(len(events), len(trace))
             np.testing.assert_allclose(trace[0][1], prepare_image(content)[0])
             np.testing.assert_allclose(trace[-1][1], traced)
             self.assertEqual(trace[1][1].ndim, 3)
