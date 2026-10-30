@@ -148,9 +148,11 @@ Los valores corresponden a esa entrada y al modelo guardado; no se modifican pes
   repetir la inferencia. Las capas espaciales muestran hasta ocho mapas y permiten
   consultar los valores originales de cualquier canal.
 
-El diagrama muestra hasta doce neuronas o medias de canales por capa; los valores
-completos se pueden consultar debajo. Cian representa valores positivos y naranja
-negativos, con escala relativa por capa. Las flechas indican flujo entre capas,
-no pesos individuales. Activación no equivale a importancia causal ni atención.
+El diagrama CNN muestra la imagen de entrada, pilas de hasta cuatro mapas por capa,
+una muestra del vector aplanado, hasta ocho neuronas densas y las probabilidades
+de las diez clases. La red MLP muestra hasta diez neuronas por etapa. Los valores
+completos se pueden consultar debajo. Azul representa valores positivos y naranja
+negativos, con escala relativa por capa; el borde dorado resalta la etapa activa.
+Las conexiones son esquemáticas y no representan pesos individuales. Activación no equivale a importancia causal ni atención.
 La pausa es una ayuda visual y no mide el rendimiento del procesador. Cada nueva
 predicción reemplaza la traza anterior; las trazas son temporales de la sesión.
