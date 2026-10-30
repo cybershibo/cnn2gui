@@ -8,6 +8,7 @@ from sklearn.datasets import load_iris
 
 from proyecto.cnn_ui import render_architecture, render_prediction, render_training
 from proyecto.training import load_run, predict, prepare, train
+from proyecto.activation_ui import input_signature, visualization_options, run_inference, render_trace
 
 
 def saved_runs(kind=None):
@@ -91,18 +92,22 @@ def train_dense(architecture):
 def predict_dense(run, config):
     st.subheader('Probar la red densa guardada')
     st.caption('Introduce las mismas medidas y unidades del dataset. Se usa la arquitectura y normalización del modelo guardado.')
+    enabled, delay = visualization_options(run)
     with st.form('prediction'):
         values = [st.number_input(name, value=float(mean), key=f'{run}-{i}')
                   for i, (name, mean) in enumerate(zip(config['columns'], config['mean']))]
         apply = st.form_submit_button('Predecir')
+    signature = input_signature(str(values).encode())
     if apply:
         try:
-            probabilities = predict(run, values)
+            probabilities = run_inference(run, signature, lambda callback: predict(run, values, on_layer=callback), enabled, delay)
             st.success(f"Clase predicha: {config['classes'][int(probabilities.argmax())]}")
             st.bar_chart(pd.DataFrame({'Probabilidad': probabilities}, index=config['classes']))
             st.caption('Estas probabilidades no garantizan fiabilidad para entradas ajenas al dataset.')
         except (ValueError, OSError, RuntimeError) as exc:
             st.error(str(exc))
+    if enabled:
+        render_trace(run, signature)
 
 
 st.set_page_config(page_title='Laboratorio de redes neuronales', page_icon='🧠', layout='wide')

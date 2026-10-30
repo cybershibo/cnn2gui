@@ -49,11 +49,26 @@ class CNNTests(unittest.TestCase):
             first = predict_cnn(run, content)
             np.testing.assert_allclose(first, predict_cnn(run, content))
             self.assertAlmostEqual(float(first.sum()), 1, places=5)
+            trace = []
+            traced = predict_cnn(run, content, on_layer=lambda name, values: trace.append((name, values)))
+            np.testing.assert_allclose(first, traced, atol=1e-6)
+            np.testing.assert_allclose(trace[0][1], prepare_image(content)[0])
+            np.testing.assert_allclose(trace[-1][1], traced)
+            self.assertEqual(trace[1][1].ndim, 3)
+            dropout = next(i for i, (name, _) in enumerate(trace) if 'Dropout' in name)
+            np.testing.assert_array_equal(trace[dropout-1][1], trace[dropout][1])
+
             app = AppTest.from_file('src/proyecto/app.py', default_timeout=60).run()
             self.assertFalse(app.exception)
+            next(item for item in app.checkbox if item.label == 'Visualizar activaciones en tiempo real').check().run()
+            next(item for item in app.slider if item.label == 'Pausa didáctica entre capas (segundos)').set_value(0.0).run()
             next(item for item in app.button if item.label == 'Clasificar imagen').click().run()
             self.assertFalse(app.exception)
             self.assertTrue(any('Clase predicha:' in item.value for item in app.success))
+            self.assertTrue(any(item.label == 'Inspeccionar capa calculada' for item in app.select_slider))
+            app.select_slider[0].set_value(1).run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any(item.label == 'Canal a inspeccionar' for item in app.slider))
 
     def test_catalog_selection_does_not_download_automatically(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, NN2GUI_DATA=directory), patch('proyecto.cnn_ui.load_dataset', return_value=fixture()) as loader:

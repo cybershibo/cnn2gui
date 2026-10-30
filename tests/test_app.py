@@ -26,10 +26,16 @@ class AppTests(unittest.TestCase):
             self.assertTrue(any(item.label == 'Predecir' for item in app.tabs[2].button))
             self.assertFalse(any(item.label == 'Predecir' for item in app.tabs[1].button))
             next(item for item in app.slider if item.label == 'Neuronas en capa 1').set_value(16).run()
+            next(item for item in app.checkbox if item.label == 'Visualizar activaciones en tiempo real').check().run()
+            next(item for item in app.slider if item.label == 'Pausa didáctica entre capas (segundos)').set_value(0.0).run()
             next(item for item in app.tabs[2].button if item.label == 'Predecir').click().run()
             self.assertEqual(load_run(run)[0]['hidden'], [64, 32])
             self.assertFalse(app.exception)
             self.assertTrue(any('Clase predicha:' in item.value for item in app.success))
+            self.assertTrue(any(item.label == 'Inspeccionar capa calculada' for item in app.select_slider))
+            app.select_slider[0].set_value(0).run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any('Entrada normalizada' in item.value for item in app.markdown))
 
 
 if __name__ == '__main__':

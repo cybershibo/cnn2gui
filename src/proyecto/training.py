@@ -110,7 +110,7 @@ def load_run(run_id):
             for name in ("config", "metrics", "history")]
 
 
-def predict(run_id, values):
+def predict(run_id, values, on_layer=None):
     config, _, _ = load_run(run_id)
     x = np.asarray(values, dtype=np.float32)
     if x.shape != (len(config["columns"]),) or not np.isfinite(x).all():
@@ -121,4 +121,13 @@ def predict(run_id, values):
     model.load_state_dict(torch.load(directory / "weights.pt", map_location="cpu", weights_only=True))
     model.eval()
     with torch.no_grad():
-        return model(torch.tensor(x, dtype=torch.float32)).softmax(0).numpy()
+        tensor = torch.tensor(x, dtype=torch.float32)
+        if on_layer is None:
+            return model(tensor).softmax(0).numpy()
+        on_layer('Entrada normalizada', tensor.numpy().copy())
+        for index, layer in enumerate(model):
+            tensor = layer(tensor)
+            on_layer(f'{index + 1} · {type(layer).__name__}', tensor.numpy().copy())
+        probabilities = tensor.softmax(0).numpy()
+        on_layer('Salida · probabilidades', probabilities.copy())
+        return probabilities

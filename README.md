@@ -133,3 +133,24 @@ Los cambios en Arquitectura se aplican al próximo entrenamiento. Ejecución usa
 siempre la arquitectura y el preprocesamiento del modelo guardado, aunque cambies
 el tipo de red o los controles de diseño. Los experimentos anteriores siguen siendo
 compatibles con la nueva organización.
+
+## Activaciones durante la ejecución
+
+En **Ejecución**, activa **Visualizar activaciones en tiempo real** antes de pulsar
+**Predecir** o **Clasificar imagen**. La visualización se actualiza al terminar cada
+capa de la inferencia real, con una pausa didáctica opcional de 0 a 0.5 segundos.
+Los valores corresponden a esa entrada y al modelo guardado; no se modifican pesos.
+
+- MLP: entradas normalizadas, transformaciones lineales, activaciones y probabilidades.
+- CNN: imagen normalizada, convoluciones, agrupaciones, aplanamiento, capa densa,
+  dropout y salida. Dropout permanece desactivado durante inferencia.
+- Al terminar, usa **Inspeccionar capa calculada** para recorrer los valores sin
+  repetir la inferencia. Las capas espaciales muestran hasta ocho mapas y permiten
+  consultar los valores originales de cualquier canal.
+
+El diagrama muestra hasta doce neuronas o medias de canales por capa; los valores
+completos se pueden consultar debajo. Cian representa valores positivos y naranja
+negativos, con escala relativa por capa. Las flechas indican flujo entre capas,
+no pesos individuales. Activación no equivale a importancia causal ni atención.
+La pausa es una ayuda visual y no mide el rendimiento del procesador. Cada nueva
+predicción reemplaza la traza anterior; las trazas son temporales de la sesión.

@@ -26,6 +26,13 @@ class TrainingTests(unittest.TestCase):
             probabilities = predict(run, self.frame.iloc[0, :-1].tolist())
             self.assertAlmostEqual(float(probabilities.sum()), 1, places=5)
             np.testing.assert_array_equal(probabilities, predict(run, self.frame.iloc[0, :-1].tolist()))
+            trace = []
+            traced = predict(run, self.frame.iloc[0, :-1].tolist(), on_layer=lambda name, values: trace.append((name, values)))
+            np.testing.assert_allclose(probabilities, traced)
+            np.testing.assert_allclose(trace[0][1], (self.frame.iloc[0, :-1].to_numpy(dtype=float) - config['mean']) / config['scale'], rtol=1e-5)
+            np.testing.assert_array_equal(trace[-1][1], traced)
+            self.assertEqual(len(trace), 5)
+            self.assertTrue(np.all(trace[2][1] >= 0))
             self.assertGreater(metrics['accuracy'], 0.5)
             self.assertEqual(len(history), 20)
 

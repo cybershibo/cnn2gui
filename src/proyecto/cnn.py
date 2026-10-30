@@ -146,10 +146,17 @@ def train_cnn(dataset, filters=(32, 64), dense=64, dropout=0.2, epochs=5,
     return directory.name
 
 
-def predict_cnn(run_id, content):
+def predict_cnn(run_id, content, on_layer=None):
     config, _, _ = load_run(run_id)
     if config.get('kind') != 'cnn':
         raise ValueError('Esta ejecución no es una CNN.')
     tf = tensorflow()
     model = tf.keras.models.load_model(data_root() / run_id / 'model.keras', compile=False, safe_mode=True)
-    return model(prepare_image(content), training=False).numpy()[0]
+    tensor = prepare_image(content)
+    if on_layer is None:
+        return model(tensor, training=False).numpy()[0]
+    on_layer('Entrada normalizada', tensor[0].copy())
+    for index, layer in enumerate(model.layers):
+        tensor = layer(tensor, training=False)
+        on_layer(f'{index + 1} · {type(layer).__name__}', tensor.numpy()[0].copy())
+    return tensor.numpy()[0]
