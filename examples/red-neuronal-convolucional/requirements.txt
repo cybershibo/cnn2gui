@@ -1,0 +1,4 @@
+# La imagen Docker aporta TensorFlow 2.15 y sus bibliotecas CUDA.
+numpy==1.26.4
+Pillow==10.4.0
+scikit-learn==1.4.2
