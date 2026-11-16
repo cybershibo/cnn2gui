@@ -327,7 +327,7 @@ def render_introduction():
             st.image(
                 str(_IMAGE_DIR / slide['image']),
                 caption=slide['caption'],
-                use_column_width=True,
+                use_container_width=True,
             )
 
     if slide.get('note'):
