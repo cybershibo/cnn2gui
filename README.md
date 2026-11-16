@@ -123,12 +123,30 @@ docker compose up --build -d
 
 ## Tres procesos separados en la interfaz
 
+- Al abrir una sesión se presenta una introducción de diez páginas: portada,
+  definición de red neuronal, neurona biológica, neurona artificial, funcionamiento
+  de una neurona, funcionamiento de una red, activaciones, entrenamiento, evaluación
+  y ejecución. La portada tiene un único botón **Comenzar**; usa **Anterior** y
+  **Siguiente** para recorrer el contenido. Desde la barra lateral puedes volver a ella.
 - **Arquitectura:** elegir el tipo de red en la barra lateral y configurar sus
   capas, neuronas, filtros, activaciones y dropout.
 - **Entrenamiento:** seleccionar o cargar el dataset, ajustar épocas, lotes y tasa
   de aprendizaje, entrenar y consultar las métricas de los experimentos guardados.
 - **Ejecución:** seleccionar cualquier modelo guardado (MLP o CNN), introducir
   medidas o cargar una imagen y obtener predicciones. No requiere volver a entrenar.
+
+## Imágenes de la presentación
+
+Las cinco gráficas de conceptos se extrajeron de la guía DOCX compartida para el
+proyecto. La explicación de la neurona biológica, la neurona artificial y la red
+completa incluye además estos recursos descargados de Wikimedia Commons:
+
+- `neural-network-overview.png`: [Neural Network.svg](https://commons.wikimedia.org/wiki/File:Neural_Network.svg),
+  de QuantuMechaniX8, CC0 1.0. Se usa la vista PNG del SVG.
+- `biological-neuron.png`: [Neuron (PSF).png](<https://commons.wikimedia.org/wiki/File:Neuron_(PSF).png>),
+  de Pearson Scott Foresman, dominio público.
+- `artificial-neuron-detail.png`: [A Perceptron Neuron.png](https://commons.wikimedia.org/wiki/File:A_Perceptron_Neuron.png),
+  de Arash Yoosefdoost, CC BY-SA 4.0.
 
 Los cambios en Arquitectura se aplican al próximo entrenamiento. Ejecución usa
 siempre la arquitectura y el preprocesamiento del modelo guardado, aunque cambies

@@ -47,7 +47,30 @@ def select_dataset_image(dataset):
         st.error(f'No se pudo abrir la selección: {exc}')
         return None, None
     st.write(f'Selección de {COUNT:,} imágenes únicas · semilla {selection["seed"]}')
-    page=st.number_input('Página de la galería', 1, COUNT//20, 1, key=f'gallery-page-{identifier}')
+    max_page = COUNT // 20
+    page_key = f'gallery-page-{identifier}'
+    page = int(st.session_state.get(page_key, 1))
+    page = max(1, min(page, max_page))
+    st.session_state[page_key] = page
+    previous_column, page_column, next_column = st.columns([1, 1, 1])
+    with previous_column:
+        if st.button('←', key=f'gallery-previous-{identifier}',
+                     help='Página anterior', disabled=page <= 1,
+                     use_container_width=True):
+            st.session_state[page_key] = page - 1
+            st.rerun()
+    with page_column:
+        st.markdown(
+            f"<div style='text-align:center;padding-top:0.45rem'>"
+            f'<strong>{page}</strong> / {max_page}</div>',
+            unsafe_allow_html=True,
+        )
+    with next_column:
+        if st.button('→', key=f'gallery-next-{identifier}',
+                     help='Página siguiente', disabled=page >= max_page,
+                     use_container_width=True):
+            st.session_state[page_key] = page + 1
+            st.rerun()
     selected_key=f'gallery-image-{identifier}'
     start=(int(page)-1)*20
     st.caption(f'Imágenes {start+1}–{start+20} de {COUNT}. Pulsa Elegir debajo de una imagen o indica su número.')

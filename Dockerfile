@@ -3,11 +3,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 NN2GUI_DATA=/data TF_CPP_MIN_LO
 WORKDIR /app
 RUN useradd --create-home app && mkdir /data && chown app:app /data
 COPY requirements-ui.txt ./
-RUN python -m pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu \
-    && python -m pip install --no-cache-dir -r requirements-ui.txt
+RUN python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu \
+    && python -m pip install -r requirements-ui.txt
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN python -m pip install --no-cache-dir --no-deps .
+RUN python -m pip install --no-deps .
 USER app
 EXPOSE 8501
 HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
@@ -18,10 +18,10 @@ FROM app-base AS cuda
 USER root
 COPY requirements-worker.txt /app/requirements-worker.txt
 RUN python -m venv /opt/torch \
-    && /opt/torch/bin/pip install --no-cache-dir -r requirements-worker.txt \
-    && /opt/torch/bin/pip install --no-cache-dir torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124 --extra-index-url https://pypi.org/simple
+    && /opt/torch/bin/pip install -r requirements-worker.txt \
+    && /opt/torch/bin/pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu124 --extra-index-url https://pypi.org/simple
 RUN python -m venv /opt/tensorflow \
-    && /opt/tensorflow/bin/pip install --no-cache-dir -r requirements-worker.txt 'tensorflow[and-cuda]==2.18.0'
+    && /opt/tensorflow/bin/pip install -r requirements-worker.txt 'tensorflow[and-cuda]==2.18.0'
 USER app
 
 FROM app-base AS cpu

@@ -10,6 +10,7 @@ from proyecto.cnn_ui import render_architecture, render_prediction, render_train
 from proyecto.training import load_run, predict, prepare, train
 from proyecto.compute_ui import device_selector
 from proyecto.activation_ui import input_signature, visualization_options, run_inference, render_trace
+from proyecto.intro_ui import render_introduction
 
 
 def saved_runs(kind=None):
@@ -114,11 +115,29 @@ def predict_dense(run, config):
 
 
 st.set_page_config(page_title='Laboratorio de redes neuronales', page_icon='🧠', layout='wide')
+
+# Fuerza la portada a usuarios que ya habían terminado la versión anterior de la guía.
+INTRO_VERSION = 2
+if st.session_state.get('intro_version') != INTRO_VERSION:
+    st.session_state['intro_completed'] = False
+    st.session_state['intro_slide'] = 0
+    st.session_state['intro_version'] = INTRO_VERSION
+
+# La introducción es la primera pantalla de cada sesión; el laboratorio se abre
+# cuando el usuario decide comenzar y puede consultarse de nuevo desde la barra lateral.
+if not st.session_state.get('intro_completed', False):
+    render_introduction()
+    st.stop()
+
 st.title('Laboratorio de redes neuronales')
 st.caption('Diseña la arquitectura · entrena con datos · ejecuta el modelo guardado')
 st.info('Redes densas con PyTorch y convolucionales con TensorFlow. Selecciona CPU o GPU NVIDIA con CUDA para cada proceso.')
 with st.sidebar:
     st.header('Tu laboratorio')
+    if st.button('Volver a la introducción'):
+        st.session_state['intro_completed'] = False
+        st.session_state['intro_slide'] = 0
+        st.rerun()
     network = st.radio('Tipo de red para diseñar y entrenar', ['Densa (MLP)', 'Convolucional (CNN)'])
     st.caption('Ejecución permite abrir cualquier modelo guardado, independientemente del tipo seleccionado aquí.')
     st.caption('Los modelos y los datos se conservan en el volumen de Docker.')
