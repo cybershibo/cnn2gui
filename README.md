@@ -123,11 +123,12 @@ docker compose up --build -d
 
 ## Tres procesos separados en la interfaz
 
-- Al abrir una sesión se presenta una introducción de diez páginas: portada,
+- Al abrir una sesión se presenta una introducción de doce páginas: portada,
   definición de red neuronal, neurona biológica, neurona artificial, funcionamiento
-  de una neurona, funcionamiento de una red, activaciones, entrenamiento, evaluación
-  y ejecución. La portada tiene un único botón **Comenzar**; usa **Anterior** y
-  **Siguiente** para recorrer el contenido. Desde la barra lateral puedes volver a ella.
+  de una neurona y de una red, tipos de redes y sus aplicaciones, activaciones,
+  entrenamiento, evaluación y ejecución. La portada tiene un único botón
+  **Comenzar**; usa **Anterior** y **Siguiente** para recorrer el contenido. Desde
+  la barra lateral puedes volver a ella.
 - **Arquitectura:** elegir el tipo de red en la barra lateral y configurar sus
   capas, neuronas, filtros, activaciones y dropout.
 - **Entrenamiento:** seleccionar o cargar el dataset, ajustar épocas, lotes y tasa

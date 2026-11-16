@@ -106,6 +106,85 @@ _SLIDES = [
         ],
     },
     {
+        'title': 'Tipos de redes neuronales y sus aplicaciones',
+        'paragraphs': [
+            'La arquitectura se elige según la forma de los datos y la tarea. Estas '
+            'familias destacan por cómo organizan y procesan la información:',
+        ],
+        'cards': [
+            (
+                'Densas (MLP)',
+                'Conectan las neuronas de una capa con las de la siguiente; suelen '
+                'recibir vectores de características.',
+                'Clasificar datos tabulares, estimar riesgo financiero o predecir '
+                'valores como precios y demanda.',
+            ),
+            (
+                'Convolucionales (CNN)',
+                'Aplican filtros que reconocen patrones locales y los combinan en '
+                'rasgos más complejos.',
+                'Clasificar imágenes, detectar objetos, segmentar imágenes médicas '
+                'e identificar defectos de fabricación.',
+            ),
+            (
+                'Recurrentes (RNN, LSTM, GRU)',
+                'Procesan una secuencia paso a paso y mantienen información de los '
+                'elementos anteriores.',
+                'Pronosticar series de tiempo y sensores, o procesar audio y texto '
+                'cuando importa el orden.',
+            ),
+            (
+                'Transformers',
+                'Usan atención para relacionar elementos distantes de una secuencia '
+                'o distintas partes de una imagen.',
+                'Traducción, resúmenes, asistentes conversacionales y análisis de '
+                'texto o imágenes.',
+            ),
+        ],
+        'note': 'En este laboratorio se pueden diseñar y entrenar redes densas (MLP) '
+                'y convolucionales (CNN).',
+    },
+    {
+        'title': 'Redes para representar, relacionar y generar datos',
+        'paragraphs': [
+            'Otras arquitecturas aprenden representaciones compactas, relaciones '
+            'entre entidades o formas de producir ejemplos nuevos:',
+        ],
+        'cards': [
+            (
+                'Autoencoders (AE y VAE)',
+                'Comprimen una entrada en una representación interna y aprenden a '
+                'reconstruirla; los VAE también pueden generar ejemplos.',
+                'Reducir dimensiones, quitar ruido, detectar anomalías y generar '
+                'variaciones de datos.',
+            ),
+            (
+                'Redes de grafos (GNN)',
+                'Actualizan la representación de cada nodo usando sus conexiones '
+                'y los atributos de sus vecinos.',
+                'Estudiar moléculas, relaciones en redes sociales, rutas, fraude y '
+                'recomendaciones.',
+            ),
+            (
+                'Redes generativas adversarias (GAN)',
+                'Un generador crea ejemplos y un discriminador aprende a distinguir '
+                'los generados de los reales.',
+                'Crear imágenes sintéticas, ampliar conjuntos de entrenamiento y '
+                'producir variaciones visuales.',
+            ),
+            (
+                'Modelos de difusión',
+                'Aprenden a retirar ruido en varios pasos para reconstruir o generar '
+                'una muestra.',
+                'Generar y editar imágenes, audio y otros contenidos; también '
+                'completar partes faltantes.',
+            ),
+        ],
+        'note': 'Las familias pueden combinarse: por ejemplo, un modelo de difusión '
+                'puede usar capas convolucionales, y un sistema de imágenes puede '
+                'combinar CNN y Transformers.',
+    },
+    {
         'title': 'Las funciones de activación permiten aprender relaciones complejas',
         'image': 'activations.png',
         'caption': 'Respuestas y derivadas de sigmoide, tanh, ReLU y Leaky ReLU.',
@@ -229,6 +308,19 @@ def render_introduction():
                     with st.container(border=True):
                         st.markdown(f'**{title}**')
                         st.write(description)
+
+    if slide.get('cards'):
+        cards = slide['cards']
+        for start in range(0, len(cards), 2):
+            columns = st.columns(2, gap='medium')
+            for column, (title, mechanism, applications) in zip(
+                columns, cards[start:start + 2]
+            ):
+                with column:
+                    with st.container(border=True):
+                        st.markdown(f'### {title}')
+                        st.write(f'**Cómo procesa los datos:** {mechanism}')
+                        st.write(f'**Aplicaciones:** {applications}')
 
     if slide.get('image'):
         with image_column:
